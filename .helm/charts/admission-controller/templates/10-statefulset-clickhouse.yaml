@@ -1,0 +1,98 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse
+  labels:
+    app: clickhouse
+spec:
+  type: LoadBalancer
+  ports:
+    - name: tcp
+      port: 9000
+      targetPort: 9000
+    - name: http
+      port: 8123
+      targetPort: 8123
+  selector:
+    app: clickhouse
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clickhouse
+  labels:
+    app: clickhouse
+spec:
+  serviceName: "clickhouse"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clickhouse
+  template:
+    metadata:
+      labels:
+        app: clickhouse
+    spec:
+      containers:
+        - name: clickhouse
+          image: yandex/clickhouse-server:21.3.20.1
+          imagePullPolicy: IfNotPresent
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8123
+          ports:
+            - containerPort: 9000
+              name: tcp
+            - containerPort: 8123
+              name: http
+          volumeMounts:
+            - name: clickhouse-data
+              mountPath: /var/lib/clickhouse
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/users.d/admission-controller.xml
+              subPath: admission-controller.xml
+      volumes:
+        - name: clickhouse-config
+          configMap:
+            name: clickhouse-config
+      terminationGracePeriodSeconds: 30
+  volumeClaimTemplates:
+    - metadata:
+        name: clickhouse-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 30Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-config
+data:
+  config.xml: |
+    <?xml version="1.0"?>
+    <yandex>
+        <http_port>8123</http_port>
+        <tcp_port>9000</tcp_port>
+        <listen_host>::</listen_host>
+        <path>/var/lib/clickhouse/</path>
+        <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+        <user_directories config_dir="/etc/clickhouse-server/users.d" />
+    </yandex>
+
+  admission-controller.xml: |
+    <yandex>
+      <users>
+        <admission-controller>
+          <password>{{ .Values.secret.envs.CLICKHOUSE_PASSWORD }}</password>
+          <networks>
+            <ip>::/0</ip>
+            <ip>0.0.0.0/0</ip>
+          </networks>
+        </admission-controller>
+      </users>
+    </yandex>

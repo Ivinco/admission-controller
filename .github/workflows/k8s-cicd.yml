@@ -1,0 +1,40 @@
+name: deploy
+
+on:
+  push:
+    branches:
+    - placeholder
+
+env:
+  WERF_SECRET_KEY: ${{ secrets.WERF_SECRET_KEY }}
+  WERF_REPO_CONTAINER_REGISTRY: harbor
+  WERF_KUBECONFIG_BASE64: ${{ secrets.KUBE_CONFIG_BASE64_DATA }}
+  WERF_ENV: development
+  WERF_PLATFORM: linux/amd64
+
+
+jobs:
+  converge_infra:
+    runs-on:
+    - self-hosted
+    environment:
+      name: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install werf
+        uses: werf/actions/install@v1.2
+        with:
+          channel: stable
+
+      - name: Run script
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login TBD --username admin --password-stdin
+          . $(werf ci-env github --as-file)
+          werf converge --namespace infra-k8s
+        env:
+          WERF_REPO: TBD
+

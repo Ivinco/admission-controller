@@ -1,0 +1,30 @@
+enabled: false
+server:
+  resources:
+    requests:
+      cpu: "100m"
+      mem: "1024Mi"
+    limits:
+      mem: "1024Mi"
+
+track:
+  enabled:
+    _default: "false"
+
+envs:
+  K8S_ID:
+    _default: default
+    dev: dev
+    prod: prod
+  DEBUG:
+    _default: false
+  OBSERVER_MODE:
+    _default: false
+    dev: true
+    prod: true
+  CLICKHOUSE_HOST:
+    _default: clickhouse
+  CLICKHOUSE_PORT:
+    _default: 9000
+  CLICKHOUSE_USER:
+    _default: admission-controller

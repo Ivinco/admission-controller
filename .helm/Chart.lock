@@ -1,0 +1,6 @@
+dependencies:
+- name: admission-controller
+  repository: ""
+  version: ~1
+digest: sha256:46bcb42bc648893d8faa40d204e483e817036f4fd9028abde785487263f3faa0
+generated: "2024-11-11T16:24:38.202268+04:00"

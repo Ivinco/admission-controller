@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-server
+  labels:
+    app: admission-server
+spec:
+  selector:
+    matchLabels:
+      app: admission-server
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "9090"
+        prometheus.io/scrape: "true"
+      labels:
+        app: admission-server
+    spec:
+      serviceAccountName: admission-controller
+      containers:
+      - name: server
+        image: {{ .Values.werf.image.admission_server }}
+        command:
+        - /app/serverd
+        resources:
+          requests:
+            memory: {{ .Values.server.resources.requests.mem }}
+            cpu: {{ .Values.server.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.server.resources.limits.mem }}
+        ports:
+        - containerPort: 8443
+          name: validation
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: K8S_ID
+          value: {{ pluck .Values.werf.env .Values.envs.K8S_ID | first | default .Values.envs.K8S_ID._default | quote }}
+        - name: DEBUG
+          value: {{ pluck .Values.werf.env .Values.envs.DEBUG | first | default .Values.envs.DEBUG._default | quote }}
+        - name: OBSERVER_MODE
+          value: {{ pluck .Values.werf.env .Values.envs.OBSERVER_MODE | first | default .Values.envs.OBSERVER_MODE._default | quote }}
+        - name: CLICKHOUSE_HOST
+          value: {{ pluck .Values.werf.env .Values.envs.CLICKHOUSE_HOST | first | default .Values.envs.CLICKHOUSE_HOST._default | quote }}
+        - name: CLICKHOUSE_PORT
+          value: {{ pluck .Values.werf.env .Values.envs.CLICKHOUSE_PORT | first | default .Values.envs.CLICKHOUSE_PORT._default | quote }}
+        - name: CLICKHOUSE_USER
+          value: {{ pluck .Values.werf.env .Values.envs.CLICKHOUSE_USER | first | default .Values.envs.CLICKHOUSE_USER._default | quote }}
+        - name: CLICKHOUSE_PASSWORD
+          value: {{ .Values.secret.envs.CLICKHOUSE_PASSWORD }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/certs
+          readOnly: true
+      volumes:
+      - name: tls-certs
+        secret:
+          secretName: admission-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admission-server
+spec:
+  selector:
+    app: admission-server
+  ports:
+    - port: 443
+      targetPort: 8443
+      name: validation
+    - port: 9090
+      targetPort: 9090
+      name: metrics

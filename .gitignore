@@ -1,0 +1,7 @@
+.werf_secret_key
+.werf_local_envs
+.vscode
+.helm/**.tgz
+.werf_dev_cluster_envs
+local
+.werf_local_envs_example

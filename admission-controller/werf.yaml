@@ -1,0 +1,44 @@
+configVersion: 1
+project: admission-controller
+cleanup:
+  keepPolicies:
+  - references:
+      branch: /.*/
+      limit:
+        last: 30
+        in: 72h
+        operator: And
+    imagesPerReference:
+      last: 1
+  - references:
+      branch: /^main$/
+    imagesPerReference:
+      last: 3
+
+---
+image: build
+from: golang:1.21-alpine
+git:
+- add: /
+  to: /app
+  stageDependencies:
+    install:
+    - "**/*"
+  excludePaths:
+  - ".helm/**"
+  - "werf*.yaml"
+docker:
+  WORKDIR: /app
+shell:
+  install:
+  - cd /app
+  - go mod download
+  - CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /app/serverd cmd/serverd/main.go
+
+---
+image: admissionServer
+from: golang:1.21-alpine
+import:
+- image: build
+  before: install
+  add: /app/serverd

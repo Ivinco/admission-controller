@@ -1,0 +1,29 @@
+configVersion: 1
+project: admission-server
+---
+image: build
+from: golang:1.22-alpine
+git:
+- add: /admission-controller
+  to: /app
+  stageDependencies:
+    install:
+    - "**/*"
+  excludePaths:
+  - ".helm/**"
+  - "werf*.yaml"
+docker:
+  WORKDIR: /app
+shell:
+  install:
+  - cd /app
+  - go mod download
+  - CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /app/serverd cmd/serverd/main.go
+
+---
+image: admission_server
+from: golang:1.22-alpine
+import:
+- image: build
+  before: install
+  add: /app/serverd

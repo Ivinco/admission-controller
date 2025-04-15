@@ -1,0 +1,30 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: objects-validation
+webhooks:
+  - name: objects-validation.default.svc
+    clientConfig:
+      service:
+        name: admission-server
+        namespace: admission-controller
+        path: "/validate"
+      caBundle:  {{ .Values.secret.tls.ca }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["deployments", "statefulsets"]
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["services"]
+    failurePolicy: Ignore
+    timeoutSeconds: 10
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    namespaceSelector:
+      matchExpressions:
+        - key: admission-control
+          operator: NotIn
+          values: ["false"]
